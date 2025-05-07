@@ -172,7 +172,7 @@ private struct PhotoView: View {
             // Track if continuation was already called
             var continuationCalled = false
             
-            try await withCheckedThrowingContinuation { continuation in
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 PHImageManager.default().requestImage(
                     for: asset,
                     targetSize: CGSize(width: UIScreen.main.bounds.width * 2, height: UIScreen.main.bounds.height * 2), // Request larger size
@@ -189,10 +189,8 @@ private struct PhotoView: View {
                     }
                     
                     if let image = image {
-                        continuation.resume(returning: ())
-                        Task { @MainActor in
-                            self.image = image
-                        }
+                        self.image = image  // Set the image directly here
+                        continuation.resume(returning: ())  // Just resume with Void
                     } else {
                         continuation.resume(throwing: PhotoError.loadFailed)
                     }
