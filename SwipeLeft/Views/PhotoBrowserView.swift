@@ -21,28 +21,72 @@ struct PhotoBrowserView: View {
 }
 
 struct PhotoLibraryAccessView: View {
+    @EnvironmentObject private var appState: AppState
+    @State private var isRequestingAccess = false
+    
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 60))
                 .foregroundColor(.gray)
             
-            Text("Photo Access Required")
+            Text(accessTitle)
                 .font(.title2)
                 .bold()
             
-            Text("Please allow access to your photo library to start swiping photos.")
+            Text(accessMessage)
                 .multilineTextAlignment(.center)
                 .foregroundColor(.gray)
             
-            Button("Grant Access") {
-                PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-                    // Handle authorization status
+            if appState.photoLibraryStatus == .denied || appState.photoLibraryStatus == .restricted {
+                Button("Open Settings") {
+                    appState.openSettings()
                 }
+                .buttonStyle(.borderedProminent)
+            } else {
+                Button("Grant Access") {
+                    isRequestingAccess = true
+                    Task {
+                        await appState.requestPhotoLibraryAccess()
+                        isRequestingAccess = false
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isRequestingAccess)
             }
-            .buttonStyle(.borderedProminent)
+            
+            if isRequestingAccess {
+                ProgressView()
+                    .padding(.top)
+            }
         }
         .padding()
+    }
+    
+    private var accessTitle: String {
+        switch appState.photoLibraryStatus {
+        case .denied:
+            return "Photo Access Denied"
+        case .restricted:
+            return "Photo Access Restricted"
+        case .limited:
+            return "Limited Photo Access"
+        default:
+            return "Photo Access Required"
+        }
+    }
+    
+    private var accessMessage: String {
+        switch appState.photoLibraryStatus {
+        case .denied:
+            return "Please enable photo access in Settings to use this feature."
+        case .restricted:
+            return "Photo access is restricted on this device."
+        case .limited:
+            return "You've granted limited access to your photos. You can change this in Settings."
+        default:
+            return "Please allow access to your photo library to start swiping photos."
+        }
     }
 }
 
