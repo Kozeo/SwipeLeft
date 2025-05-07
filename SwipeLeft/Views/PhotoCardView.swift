@@ -16,7 +16,7 @@ struct PhotoCardView: View {
                 // Photo content
                 if let asset = viewModel.currentPhoto {
                     PhotoView(asset: asset)
-                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
                         .clipped()
                 }
                 
@@ -40,7 +40,7 @@ struct PhotoCardView: View {
                     .opacity(Double(offset.height < 0 ? min(-offset.height/50, 1) : 0))
                     .offset(y: -geometry.size.height/4)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
             .offset(x: offset.width, y: offset.height)
             .rotationEffect(.degrees(Double(offset.width / 20)))
             .gesture(
@@ -57,7 +57,7 @@ struct PhotoCardView: View {
                     }
             )
         }
-        .ignoresSafeArea(.all)
+        .ignoresSafeArea()
     }
     
     private func swipeCard(width: CGFloat, height: CGFloat) {
