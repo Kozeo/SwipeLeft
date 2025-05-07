@@ -3,12 +3,7 @@ import PhotosUI
 
 struct PhotoBrowserView: View {
     @EnvironmentObject private var appState: AppState
-    @StateObject private var viewModel: PhotoBrowserViewModel
-    
-    init() {
-        // Initialize with a temporary AppState, will be replaced by environment object
-        _viewModel = StateObject(wrappedValue: PhotoBrowserViewModel(appState: AppState()))
-    }
+    @StateObject private var viewModel = PhotoBrowserViewModel(appState: AppState())
     
     var body: some View {
         NavigationStack {
@@ -22,21 +17,19 @@ struct PhotoBrowserView: View {
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .ignoresSafeArea()
+                .ignoresSafeArea(.all)
                 
+                // Content
                 if !appState.photoLibraryAccess {
                     PhotoLibraryAccessView()
                 } else {
                     PhotoCardView()
                         .environmentObject(viewModel)
+                        .edgesIgnoringSafeArea(.all)
                 }
             }
             .navigationTitle("Browse Photos")
             .navigationBarTitleDisplayMode(.inline)
-        }
-        .onAppear {
-            // Update ViewModel with the actual AppState from environment
-            viewModel.updateAppState(appState)
         }
     }
 }

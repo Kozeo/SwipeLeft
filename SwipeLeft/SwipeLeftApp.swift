@@ -17,7 +17,7 @@ struct SwipeLeftApp: App {
     // MARK: - Body
     var body: some Scene {
         WindowGroup {
-            MainTabView()
+            ContentView()
                 .environmentObject(appState)
                 .onAppear {
                     configureGlobalAppearance()
