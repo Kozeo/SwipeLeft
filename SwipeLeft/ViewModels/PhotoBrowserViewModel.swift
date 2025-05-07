@@ -36,30 +36,34 @@ class PhotoBrowserViewModel: ObservableObject {
     }
     
     func loadPhotos() {
-        isLoading = true
-        
-        let options = PHFetchOptions()
-        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-        
-        photoFetchResult = PHAsset.fetchAssets(with: .image, options: options)
-        if let firstAsset = photoFetchResult?.firstObject {
-            currentPhoto = firstAsset
+        Task { @MainActor in
+            isLoading = true
+            
+            let options = PHFetchOptions()
+            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            
+            photoFetchResult = PHAsset.fetchAssets(with: .image, options: options)
+            if let firstAsset = photoFetchResult?.firstObject {
+                currentPhoto = firstAsset
+            }
+            
+            isLoading = false
         }
-        
-        isLoading = false
     }
     
     func handleSwipe(direction: SwipeDirection) {
-        switch direction {
-        case .left:
-            // Ignore photo
-            moveToNextPhoto()
-        case .right:
-            // Save to private collection
-            saveToPrivateCollection()
-        case .up:
-            // Upload to public feed
-            uploadToPublicFeed()
+        Task { @MainActor in
+            switch direction {
+            case .left:
+                // Ignore photo
+                moveToNextPhoto()
+            case .right:
+                // Save to private collection
+                saveToPrivateCollection()
+            case .up:
+                // Upload to public feed
+                uploadToPublicFeed()
+            }
         }
     }
     
@@ -114,7 +118,9 @@ class PhotoBrowserViewModel: ObservableObject {
                 }
             }
         } catch {
-            print("Failed to load image: \(error)")
+            await MainActor.run {
+                self.error = error
+            }
             return nil
         }
     }
