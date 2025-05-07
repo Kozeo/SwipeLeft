@@ -28,8 +28,6 @@ struct PhotoBrowserView: View {
                         .edgesIgnoringSafeArea(.all)
                 }
             }
-            .navigationTitle("Browse Photos")
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
