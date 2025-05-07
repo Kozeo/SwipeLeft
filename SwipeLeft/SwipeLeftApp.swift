@@ -24,7 +24,7 @@ struct SwipeLeftApp: App {
 }
 
 // MARK: - App State
-class AppState: ObservableObject, PHPhotoLibraryChangeObserver {
+class AppState: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     // MARK: - Published Properties
     @Published var isAuthenticated = false
     @Published var photoLibraryAccess = false
@@ -35,7 +35,8 @@ class AppState: ObservableObject, PHPhotoLibraryChangeObserver {
     private var currentPhotoIdentifier: String?
     
     // MARK: - Initialization
-    init() {
+    override init() {
+        super.init()
         checkPhotoLibraryAccess()
         PHPhotoLibrary.shared().register(self)
     }
@@ -47,13 +48,13 @@ class AppState: ObservableObject, PHPhotoLibraryChangeObserver {
     // MARK: - PHPhotoLibraryChangeObserver
     func photoLibraryDidChange(_ changeInstance: PHChange) {
         // Check if the change affects our current photo
-        if let currentIdentifier = currentPhotoIdentifier,
-           let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [currentIdentifier], options: nil),
-           let changes = changeInstance.changeDetails(for: fetchResult) {
-            
-            // If our current photo was deleted or modified
-            if changes.fetchResultAfterChanges.count == 0 {
-                checkPhotoLibraryAccess()
+        if let currentIdentifier = currentPhotoIdentifier {
+            let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [currentIdentifier], options: nil)
+            if let changes = changeInstance.changeDetails(for: fetchResult) {
+                // If our current photo was deleted or modified
+                if changes.fetchResultAfterChanges.count == 0 {
+                    checkPhotoLibraryAccess()
+                }
             }
         } else {
             // If we don't have detailed change info, refresh everything

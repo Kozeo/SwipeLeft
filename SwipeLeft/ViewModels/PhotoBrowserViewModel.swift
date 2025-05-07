@@ -42,7 +42,9 @@ class PhotoBrowserViewModel: ObservableObject {
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         
         photoFetchResult = PHAsset.fetchAssets(with: .image, options: options)
-        currentPhoto = photoFetchResult?.firstObject
+        if let firstAsset = photoFetchResult?.firstObject {
+            currentPhoto = firstAsset
+        }
         
         isLoading = false
     }
@@ -63,11 +65,14 @@ class PhotoBrowserViewModel: ObservableObject {
     
     // MARK: - Private Methods
     private func moveToNextPhoto() {
-        guard let currentIndex = photoFetchResult?.index(of: currentPhoto ?? PHAsset()) else { return }
+        guard let currentPhoto = currentPhoto,
+              let fetchResult = photoFetchResult else { return }
+        
+        let currentIndex = fetchResult.index(of: currentPhoto)
         let nextIndex = currentIndex + 1
         
-        if nextIndex < (photoFetchResult?.count ?? 0) {
-            currentPhoto = photoFetchResult?.object(at: nextIndex)
+        if nextIndex < fetchResult.count {
+            self.currentPhoto = fetchResult.object(at: nextIndex)
         }
     }
     
