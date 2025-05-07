@@ -20,6 +20,8 @@ struct MainTabView: View {
                     Label("Profile", systemImage: "person.fill")
                 }
         }
+        .tint(.purple) // App's accent color
+        .ignoresSafeArea(.keyboard) // Ignore keyboard safe area
     }
 }
 

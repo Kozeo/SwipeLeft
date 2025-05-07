@@ -19,7 +19,33 @@ struct SwipeLeftApp: App {
         WindowGroup {
             MainTabView()
                 .environmentObject(appState)
+                .onAppear {
+                    configureGlobalAppearance()
+                }
         }
+        .windowStyle(.automatic)
+    }
+    
+    // MARK: - Private Methods
+    private func configureGlobalAppearance() {
+        // Configure global UI appearance
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = .systemBackground
+        appearance.titleTextAttributes = [.foregroundColor: UIColor.label]
+        appearance.largeTitleTextAttributes = [.foregroundColor: UIColor.label]
+        
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        
+        // Configure tab bar appearance
+        let tabBarAppearance = UITabBarAppearance()
+        tabBarAppearance.configureWithOpaqueBackground()
+        tabBarAppearance.backgroundColor = .systemBackground
+        
+        UITabBar.appearance().standardAppearance = tabBarAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
     }
 }
 

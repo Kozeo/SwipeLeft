@@ -41,7 +41,7 @@ struct PhotoCardView: View {
                         Spacer()
                         
                         Image(systemName: "heart.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(.purple)
                             .font(.system(size: 100))
                             .opacity(Double(offset.width > 0 ? offset.width / 50 : 0))
                     }
@@ -59,7 +59,10 @@ struct PhotoCardView: View {
                         .foregroundColor(.gray)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(UIColor.systemBackground))
         }
+        .ignoresSafeArea()
     }
     
     private func swipeCard(width: CGFloat, height: CGFloat) {
@@ -85,7 +88,7 @@ struct PhotoCardView: View {
         case -500...(-130):
             color = .red
         case 130...500:
-            color = .green
+            color = .purple
         default:
             color = .black
         }
@@ -103,8 +106,10 @@ struct PhotoView: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
+                    .clipped()
             } else {
                 ProgressView()
+                    .scaleEffect(2)
             }
         }
         .task {
