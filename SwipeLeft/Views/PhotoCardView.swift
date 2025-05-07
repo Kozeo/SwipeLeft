@@ -16,7 +16,10 @@ struct PhotoCardView: View {
                 // Photo content
                 if let asset = viewModel.currentPhoto {
                     PhotoView(asset: asset)
-                        .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                        .frame(
+                            width: geometry.size.width,
+                            height: geometry.size.height - geometry.safeAreaInsets.bottom
+                        )
                         .clipped()
                 }
                 
@@ -40,7 +43,10 @@ struct PhotoCardView: View {
                     .opacity(Double(offset.height < 0 ? min(-offset.height/50, 1) : 0))
                     .offset(y: -geometry.size.height/4)
             }
-            .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+            .frame(
+                width: geometry.size.width,
+                height: geometry.size.height - geometry.safeAreaInsets.bottom
+            )
             .offset(x: offset.width, y: offset.height)
             .rotationEffect(.degrees(Double(offset.width / 20)))
             .gesture(

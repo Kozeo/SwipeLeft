@@ -25,9 +25,14 @@ struct PhotoBrowserView: View {
                 } else {
                     PhotoCardView()
                         .environmentObject(viewModel)
-                        .edgesIgnoringSafeArea(.all)
+                        .safeAreaInset(edge: .bottom) {
+                            // Empty view with height matching tab bar
+                            Color.clear.frame(height: 0)
+                        }
                 }
             }
+            .navigationTitle("Browse Photos")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
