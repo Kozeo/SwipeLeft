@@ -8,19 +8,15 @@ struct PhotoCardView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
-                // Background color to fill the entire screen
-                Color(UIColor.systemBackground)
-                    .ignoresSafeArea()
+            VStack(spacing: 0) {
+                Spacer() // This pushes content down to the bottom
                 
                 // Photo content
                 if let asset = viewModel.currentPhoto {
                     PhotoView(asset: asset)
-                        .frame(
-                            width: geometry.size.width,
-                            height: geometry.size.height - geometry.safeAreaInsets.bottom
-                        )
-                        .clipped()
+                        .aspectRatio(contentMode: .fit) // Show entire image without cropping
+                        .frame(width: geometry.size.width)
+                        .padding(.bottom, 10) // Small padding above tab bar
                 }
                 
                 // Swipe direction indicators
@@ -43,10 +39,7 @@ struct PhotoCardView: View {
                     .opacity(Double(offset.height < 0 ? min(-offset.height/50, 1) : 0))
                     .offset(y: -geometry.size.height/4)
             }
-            .frame(
-                width: geometry.size.width,
-                height: geometry.size.height * 0.85
-            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .offset(x: offset.width, y: offset.height)
             .rotationEffect(.degrees(Double(offset.width / 20)))
             .gesture(
@@ -63,23 +56,73 @@ struct PhotoCardView: View {
                     }
             )
         }
-        .edgesIgnoringSafeArea([.top, .horizontal])
+        .edgesIgnoringSafeArea([.horizontal, .top])
     }
     
     private func swipeCard(width: CGFloat, height: CGFloat) {
         switch width {
         case -500...(-150):
-            offset = CGSize(width: -500, height: 0)
-            viewModel.handleSwipe(direction: .left)
+            // Left swipe animation
+            withAnimation(.easeOut(duration: 0.2)) {
+                offset = CGSize(width: -500, height: 0)
+            }
+            
+            // Process after animation completes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                self.viewModel.handleSwipe(direction: .left)
+                
+                // Reset position immediately for next card
+                self.offset = CGSize(width: 500, height: 0)
+                
+                // Animate new card coming in from right
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    self.offset = .zero
+                }
+            }
+            
         case 150...500:
-            offset = CGSize(width: 500, height: 0)
-            viewModel.handleSwipe(direction: .right)
+            // Right swipe animation
+            withAnimation(.easeOut(duration: 0.2)) {
+                offset = CGSize(width: 500, height: 0)
+            }
+            
+            // Process after animation completes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                self.viewModel.handleSwipe(direction: .right)
+                
+                // Reset position immediately for next card
+                self.offset = CGSize(width: -500, height: 0)
+                
+                // Animate new card coming in from left
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    self.offset = .zero
+                }
+            }
+            
         default:
             if height < -150 {
-                offset = CGSize(width: 0, height: -500)
-                viewModel.handleSwipe(direction: .up)
+                // Up swipe animation
+                withAnimation(.easeOut(duration: 0.2)) {
+                    offset = CGSize(width: 0, height: -500)
+                }
+                
+                // Process after animation completes
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    self.viewModel.handleSwipe(direction: .up)
+                    
+                    // Reset position immediately for next card
+                    self.offset = CGSize(width: 0, height: 500)
+                    
+                    // Animate new card coming in from bottom
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        self.offset = .zero
+                    }
+                }
             } else {
-                offset = .zero
+                // Return to center if swipe wasn't far enough
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    offset = .zero
+                }
             }
         }
     }
@@ -100,25 +143,63 @@ struct PhotoCardView: View {
     }
 }
 
-struct PhotoView: View {
+private struct PhotoView: View {
     let asset: PHAsset
-    @EnvironmentObject private var viewModel: PhotoBrowserViewModel
     @State private var image: UIImage?
-    @State private var isLoading = true
     
     var body: some View {
-        ZStack {
+        Group {
             if let image = image {
                 Image(uiImage: image)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else if isLoading {
+                    .aspectRatio(contentMode: .fit)
+            } else {
                 ProgressView()
             }
         }
         .task {
-            image = await viewModel.loadImage(for: asset)
-            isLoading = false
+            await loadImage()
+        }
+    }
+    
+    private func loadImage() async {
+        do {
+            let options = PHImageRequestOptions()
+            options.deliveryMode = .highQualityFormat // Request high quality
+            options.isNetworkAccessAllowed = true
+            options.isSynchronous = false
+            
+            // Track if continuation was already called
+            var continuationCalled = false
+            
+            try await withCheckedThrowingContinuation { continuation in
+                PHImageManager.default().requestImage(
+                    for: asset,
+                    targetSize: CGSize(width: UIScreen.main.bounds.width * 2, height: UIScreen.main.bounds.height * 2), // Request larger size
+                    contentMode: .aspectFit,
+                    options: options
+                ) { image, info in
+                    // Guard against calling continuation multiple times
+                    guard !continuationCalled else { return }
+                    continuationCalled = true
+                    
+                    if let error = info?[PHImageErrorKey] as? Error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+                    
+                    if let image = image {
+                        continuation.resume(returning: ())
+                        Task { @MainActor in
+                            self.image = image
+                        }
+                    } else {
+                        continuation.resume(throwing: PhotoError.loadFailed)
+                    }
+                }
+            }
+        } catch {
+            print("Failed to load image: \(error)")
         }
     }
 }

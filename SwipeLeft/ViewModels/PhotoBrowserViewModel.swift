@@ -21,13 +21,17 @@ class PhotoBrowserViewModel: ObservableObject {
     @Published var error: Error?
     
     // MARK: - Private Properties
-    private var photoFetchResult: PHFetchResult<PHAsset>?
+    private var photoBuffer: [PHAsset] = []
+    private var bufferSize = 4
+    private var allPhotoIds: [String] = []  // Store only IDs, not actual assets
+    private var usedIndices = Set<Int>()
+    private let imageManager = PHImageManager.default()
     private var appState: AppState
     
     // MARK: - Initialization
     init(appState: AppState) {
         self.appState = appState
-        loadPhotos()
+        loadInitialPhotos()
     }
     
     // MARK: - Public Methods
@@ -35,28 +39,111 @@ class PhotoBrowserViewModel: ObservableObject {
         self.appState = newAppState
     }
     
-    func loadPhotos() {
+    func loadInitialPhotos() {
         Task { @MainActor in
             isLoading = true
             
-            let options = PHFetchOptions()
-            options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            // First, get just the IDs of all photos
+            let fetchOptions = PHFetchOptions()
+            fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            let allPhotos = PHAsset.fetchAssets(with: .image, options: fetchOptions)
             
-            photoFetchResult = PHAsset.fetchAssets(with: .image, options: options)
-            if let firstAsset = photoFetchResult?.firstObject {
-                currentPhoto = firstAsset
+            // Extract just the identifiers to save memory
+            allPhotoIds = []
+            allPhotos.enumerateObjects { (asset, index, _) in
+                self.allPhotoIds.append(asset.localIdentifier)
+            }
+            
+            // Load initial buffer
+            refreshPhotoBuffer()
+            
+            // Set current photo
+            if !photoBuffer.isEmpty {
+                currentPhoto = photoBuffer[0]
             }
             
             isLoading = false
         }
     }
     
+    // MARK: - Buffer Management
+    private func refreshPhotoBuffer() {
+        // Only proceed if we have photos
+        guard !allPhotoIds.isEmpty else { return }
+        
+        // Clear buffer if we've shown all photos
+        if usedIndices.count >= allPhotoIds.count {
+            usedIndices.removeAll()
+        }
+        
+        // Fill buffer with new random photos
+        while photoBuffer.count < bufferSize {
+            // Get a truly random index we haven't used
+            guard let randomIndex = getRandomUnusedIndex() else { break }
+            
+            // Fetch the actual asset
+            let identifier = allPhotoIds[randomIndex]
+            let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [identifier], options: nil)
+            
+            if let asset = fetchResult.firstObject {
+                photoBuffer.append(asset)
+            }
+        }
+        
+        // Log buffer size for debugging
+        print("Buffer now contains \(photoBuffer.count) photos")
+    }
+    
+    // Helper method to get random unused index
+    private func getRandomUnusedIndex() -> Int? {
+        // If we've used all indices, return nil
+        if usedIndices.count >= allPhotoIds.count {
+            return nil
+        }
+        
+        // Try to find unused index
+        var attempts = 0
+        var randomIndex: Int
+        
+        repeat {
+            randomIndex = Int.random(in: 0..<allPhotoIds.count)
+            attempts += 1
+            
+            // Prevent infinite loop
+            if attempts > 100 {
+                print("Warning: Too many attempts to find unused index")
+                break
+            }
+        } while usedIndices.contains(randomIndex)
+        
+        // Mark as used
+        usedIndices.insert(randomIndex)
+        return randomIndex
+    }
+    
+    // MARK: - Photo Navigation
+    private func showNextPhoto() {
+        // Remove the current photo from buffer
+        if !photoBuffer.isEmpty {
+            photoBuffer.removeFirst()
+        }
+        
+        // Refresh buffer if needed
+        refreshPhotoBuffer()
+        
+        // Set new current photo
+        if !photoBuffer.isEmpty {
+            currentPhoto = photoBuffer[0]
+        }
+    }
+    
+    // MARK: - Swipe Handlers
     func handleSwipe(direction: SwipeDirection) {
         Task { @MainActor in
             switch direction {
             case .left:
                 // Ignore photo
-                moveToNextPhoto()
+                showNextPhoto()
             case .right:
                 // Save to private collection
                 saveToPrivateCollection()
@@ -67,27 +154,14 @@ class PhotoBrowserViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Private Methods
-    private func moveToNextPhoto() {
-        guard let currentPhoto = currentPhoto,
-              let fetchResult = photoFetchResult else { return }
-        
-        let currentIndex = fetchResult.index(of: currentPhoto)
-        let nextIndex = currentIndex + 1
-        
-        if nextIndex < fetchResult.count {
-            self.currentPhoto = fetchResult.object(at: nextIndex)
-        }
-    }
-    
     private func saveToPrivateCollection() {
         // TODO: Implement saving to private collection
-        moveToNextPhoto()
+        showNextPhoto()
     }
     
     private func uploadToPublicFeed() {
         // TODO: Implement uploading to public feed
-        moveToNextPhoto()
+        showNextPhoto()
     }
     
     // MARK: - Photo Loading
@@ -95,16 +169,23 @@ class PhotoBrowserViewModel: ObservableObject {
         do {
             return try await withCheckedThrowingContinuation { continuation in
                 let options = PHImageRequestOptions()
-                options.deliveryMode = .highQualityFormat
+                options.deliveryMode = .highQualityFormat  // Request high quality
                 options.isNetworkAccessAllowed = true
                 options.isSynchronous = false
                 
+                // Track if continuation was already called
+                var continuationCalled = false
+                
                 PHImageManager.default().requestImage(
                     for: asset,
-                    targetSize: PHImageManagerMaximumSize,
+                    targetSize: CGSize(width: UIScreen.main.bounds.width * 2, height: UIScreen.main.bounds.height * 2), // Request larger size
                     contentMode: .aspectFit,
                     options: options
                 ) { image, info in
+                    // Guard against calling continuation multiple times
+                    guard !continuationCalled else { return }
+                    continuationCalled = true
+                    
                     if let error = info?[PHImageErrorKey] as? Error {
                         continuation.resume(throwing: error)
                         return
@@ -118,6 +199,7 @@ class PhotoBrowserViewModel: ObservableObject {
                 }
             }
         } catch {
+            print("Image loading error: \(error)")
             await MainActor.run {
                 self.error = error
             }
