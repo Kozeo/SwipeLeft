@@ -19,6 +19,8 @@ struct SwipeLeftApp: App {
         WindowGroup {
             MainTabView()
                 .environmentObject(appState)
+                .edgesIgnoringSafeArea(.all)
+                .ignoresSafeArea(.all, edges: .all)
                 .onAppear {
                     configureGlobalAppearance()
                 }

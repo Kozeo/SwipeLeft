@@ -9,6 +9,7 @@ struct MainTabView: View {
                 .tabItem {
                     Label("Browse", systemImage: "photo.stack")
                 }
+                .edgesIgnoringSafeArea([.top, .horizontal])
             
             PrivateCollectionView()
                 .tabItem {

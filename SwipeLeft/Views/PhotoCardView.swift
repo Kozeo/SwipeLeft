@@ -3,66 +3,67 @@ import PhotosUI
 
 struct PhotoCardView: View {
     @EnvironmentObject private var viewModel: PhotoBrowserViewModel
-    @EnvironmentObject private var appState: AppState
     @State private var offset = CGSize.zero
-    @State private var color: Color = .black
+    @State private var color: Color = .white
     
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                if let photo = viewModel.currentPhoto {
-                    PhotoView(asset: photo)
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                        .offset(x: offset.width, y: offset.height)
-                        .rotationEffect(.degrees(Double(offset.width / 40)))
-                        .gesture(
-                            DragGesture()
-                                .onChanged { gesture in
-                                    offset = gesture.translation
-                                    withAnimation {
-                                        changeColor(width: offset.width)
-                                    }
-                                }
-                                .onEnded { _ in
-                                    withAnimation {
-                                        swipeCard(width: offset.width, height: offset.height)
-                                        changeColor(width: offset.width)
-                                    }
-                                }
+                // Background color to fill the entire screen
+                Color(UIColor.systemBackground)
+                    .ignoresSafeArea()
+                
+                // Photo content
+                if let asset = viewModel.currentPhoto {
+                    PhotoView(asset: asset)
+                        .frame(
+                            width: geometry.size.width,
+                            height: geometry.size.height - geometry.safeAreaInsets.bottom
                         )
-                    
-                    // Swipe direction indicators
-                    HStack {
-                        Image(systemName: "xmark")
-                            .foregroundColor(.red)
-                            .font(.system(size: 100))
-                            .opacity(Double(offset.width < 0 ? -offset.width / 50 : 0))
-                        
-                        Spacer()
-                        
-                        Image(systemName: "heart.fill")
-                            .foregroundColor(.purple)
-                            .font(.system(size: 100))
-                            .opacity(Double(offset.width > 0 ? offset.width / 50 : 0))
-                    }
-                    .padding(.horizontal, 40)
-                    
-                    // Upload indicator
-                    Image(systemName: "arrow.up.circle.fill")
-                        .foregroundColor(.blue)
-                        .font(.system(size: 100))
-                        .opacity(Double(offset.height < 0 ? -offset.height / 50 : 0))
-                        .offset(y: -geometry.size.height / 3)
-                } else {
-                    Text("No more photos")
-                        .font(.title)
-                        .foregroundColor(.gray)
+                        .clipped()
                 }
+                
+                // Swipe direction indicators
+                HStack {
+                    Image(systemName: "xmark")
+                        .foregroundColor(.red)
+                        .opacity(Double(offset.width < 0 ? min(-offset.width/50, 1) : 0))
+                    
+                    Spacer()
+                    
+                    Image(systemName: "heart.fill")
+                        .foregroundColor(.green)
+                        .opacity(Double(offset.width > 0 ? min(offset.width/50, 1) : 0))
+                }
+                .padding(.horizontal, 40)
+                
+                // Upload indicator
+                Image(systemName: "arrow.up.circle.fill")
+                    .foregroundColor(.blue)
+                    .opacity(Double(offset.height < 0 ? min(-offset.height/50, 1) : 0))
+                    .offset(y: -geometry.size.height/4)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(UIColor.systemBackground))
+            .frame(
+                width: geometry.size.width,
+                height: geometry.size.height * 0.85
+            )
+            .offset(x: offset.width, y: offset.height)
+            .rotationEffect(.degrees(Double(offset.width / 20)))
+            .gesture(
+                DragGesture()
+                    .onChanged { gesture in
+                        offset = gesture.translation
+                        changeColor(width: offset.width, height: offset.height)
+                    }
+                    .onEnded { gesture in
+                        withAnimation {
+                            swipeCard(width: gesture.translation.width, height: gesture.translation.height)
+                            changeColor(width: offset.width, height: offset.height)
+                        }
+                    }
+            )
         }
-        .ignoresSafeArea()
+        .edgesIgnoringSafeArea([.top, .horizontal])
     }
     
     private func swipeCard(width: CGFloat, height: CGFloat) {
@@ -83,42 +84,42 @@ struct PhotoCardView: View {
         }
     }
     
-    private func changeColor(width: CGFloat) {
+    private func changeColor(width: CGFloat, height: CGFloat) {
         switch width {
         case -500...(-130):
             color = .red
         case 130...500:
-            color = .purple
+            color = .green
         default:
-            color = .black
+            if height < -130 {
+                color = .blue
+            } else {
+                color = .white
+            }
         }
     }
 }
 
 struct PhotoView: View {
     let asset: PHAsset
-    @State private var image: UIImage?
     @EnvironmentObject private var viewModel: PhotoBrowserViewModel
+    @State private var image: UIImage?
+    @State private var isLoading = true
     
     var body: some View {
-        Group {
+        ZStack {
             if let image = image {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .clipped()
-            } else {
+            } else if isLoading {
                 ProgressView()
-                    .scaleEffect(2)
             }
         }
         .task {
-            await loadImage()
+            image = await viewModel.loadImage(for: asset)
+            isLoading = false
         }
-    }
-    
-    private func loadImage() async {
-        image = await viewModel.loadImage(for: asset)
     }
 }
 
