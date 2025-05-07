@@ -29,9 +29,22 @@
 		972F28182DCBE3500026675F /* SwipeLeftUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwipeLeftUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		972F283B2DCBE9120026675F /* Exceptions for "SwipeLeft" folder in "SwipeLeft" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 972F28002DCBE34E0026675F /* SwipeLeft */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		972F28032DCBE34E0026675F /* SwipeLeft */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				972F283B2DCBE9120026675F /* Exceptions for "SwipeLeft" folder in "SwipeLeft" target */,
+			);
 			path = SwipeLeft;
 			sourceTree = "<group>";
 		};
