@@ -54,16 +54,27 @@ class AppState: ObservableObject {
     
     private func setupPhotoLibraryObserver() {
         photoLibraryObserver = NotificationCenter.default.addObserver(
-            forName: PHPhotoLibrary.photoLibraryDidChange,
+            forName: PHPhotoLibrary.changeNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
-            self?.handlePhotoLibraryChange()
+        ) { [weak self] notification in
+            self?.handlePhotoLibraryChange(notification)
         }
     }
     
-    private func handlePhotoLibraryChange() {
-        checkPhotoLibraryAccess()
+    private func handlePhotoLibraryChange(_ notification: Notification) {
+        // Check if the change affects our current photo
+        if let userInfo = notification.userInfo {
+            let changes = PHObject.changes(from: userInfo)
+            
+            // If our current photo was deleted or modified, refresh the access status
+            if changes.contains(where: { $0.assetIdentifier == currentPhotoIdentifier }) {
+                checkPhotoLibraryAccess()
+            }
+        } else {
+            // If we don't have detailed change info, just refresh everything
+            checkPhotoLibraryAccess()
+        }
     }
     
     // MARK: - Public Methods
@@ -85,6 +96,14 @@ class AppState: ObservableObject {
         if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(settingsURL)
         }
+    }
+    
+    // MARK: - Private Properties
+    private var currentPhotoIdentifier: String?
+    
+    // MARK: - Public Methods
+    func setCurrentPhoto(_ asset: PHAsset?) {
+        currentPhotoIdentifier = asset?.localIdentifier
     }
 }
 
