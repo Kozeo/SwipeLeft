@@ -78,33 +78,43 @@ class AppState: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
             let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [currentIdentifier], options: nil)
             if let changes = changeInstance.changeDetails(for: fetchResult) {
                 // If our current photo was deleted or modified
-                if changes.fetchResultAfterChanges.count == 0 {
-                    checkPhotoLibraryAccess()
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    if changes.fetchResultAfterChanges.count == 0 {
+                        self.checkPhotoLibraryAccess()
+                    }
                 }
             }
         } else {
             // If we don't have detailed change info, refresh everything
-            checkPhotoLibraryAccess()
+            DispatchQueue.main.async { [weak self] in
+                self?.checkPhotoLibraryAccess()
+            }
         }
     }
     
     // MARK: - Private Methods
     private func checkPhotoLibraryAccess() {
-        photoLibraryStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        photoLibraryAccess = photoLibraryStatus == .authorized
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.photoLibraryStatus = status
+            self.photoLibraryAccess = status == .authorized
+        }
     }
     
     // MARK: - Public Methods
     func requestPhotoLibraryAccess() async {
         do {
             let status = try await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-            await MainActor.run {
-                photoLibraryStatus = status
-                photoLibraryAccess = status == .authorized
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                self.photoLibraryStatus = status
+                self.photoLibraryAccess = status == .authorized
             }
         } catch {
-            await MainActor.run {
-                self.error = error
+            await MainActor.run { [weak self] in
+                self?.error = error
             }
         }
     }
@@ -116,7 +126,9 @@ class AppState: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     }
     
     func setCurrentPhoto(_ asset: PHAsset?) {
-        currentPhotoIdentifier = asset?.localIdentifier
+        DispatchQueue.main.async { [weak self] in
+            self?.currentPhotoIdentifier = asset?.localIdentifier
+        }
     }
 }
 
