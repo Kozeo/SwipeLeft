@@ -131,9 +131,13 @@ class PhotoBrowserViewModel: ObservableObject {
         // Refresh buffer if needed
         refreshPhotoBuffer()
         
-        // Set new current photo
-        if !photoBuffer.isEmpty {
-            currentPhoto = photoBuffer[0]
+        // Important: This must update on the main thread
+        DispatchQueue.main.async {
+            if !self.photoBuffer.isEmpty {
+                // Set new photo and print to verify change
+                self.currentPhoto = self.photoBuffer[0]
+                print("New photo set: \(self.currentPhoto?.localIdentifier ?? "none")")
+            }
         }
     }
     

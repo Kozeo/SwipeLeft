@@ -4,57 +4,56 @@ import PhotosUI
 struct PhotoCardView: View {
     @EnvironmentObject private var viewModel: PhotoBrowserViewModel
     @State private var offset = CGSize.zero
-    @State private var color: Color = .white
+    @State private var color: Color = .black
     
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
-                Spacer() // This pushes content down to the bottom
-                
-                // Photo content
-                if let asset = viewModel.currentPhoto {
-                    PhotoView(asset: asset)
-                        .aspectRatio(contentMode: .fit) // Show entire image without cropping
-                        .frame(width: geometry.size.width)
-                        .padding(.bottom, 10) // Small padding above tab bar
-                }
-                
-                // Swipe direction indicators
-                HStack {
-                    Image(systemName: "xmark")
-                        .foregroundColor(.red)
-                        .opacity(Double(offset.width < 0 ? min(-offset.width/50, 1) : 0))
+            ZStack {
+                if let photo = viewModel.currentPhoto {
+                    // Add an ID to force view refresh when photo changes
+                    PhotoView(asset: photo)
+                        .id(photo.localIdentifier) // This is crucial!
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: geometry.size.width, height: geometry.size.height - 120)
+                        .offset(x: offset.width, y: offset.height)
+                        .rotationEffect(.degrees(Double(offset.width / 40)))
+                        .gesture(
+                            DragGesture()
+                                .onChanged { gesture in
+                                    offset = gesture.translation
+                                    changeColor(width: offset.width, height: offset.height)
+                                }
+                                .onEnded { gesture in
+                                    withAnimation {
+                                        swipeCard(width: gesture.translation.width, height: gesture.translation.height)
+                                        changeColor(width: offset.width, height: offset.height)
+                                    }
+                                }
+                        )
                     
-                    Spacer()
+                    // Swipe direction indicators
+                    HStack {
+                        Image(systemName: "xmark")
+                            .foregroundColor(.red)
+                            .opacity(Double(offset.width < 0 ? min(-offset.width/50, 1) : 0))
+                        
+                        Spacer()
+                        
+                        Image(systemName: "heart.fill")
+                            .foregroundColor(.green)
+                            .opacity(Double(offset.width > 0 ? min(offset.width/50, 1) : 0))
+                    }
+                    .padding(.horizontal, 40)
                     
-                    Image(systemName: "heart.fill")
-                        .foregroundColor(.green)
-                        .opacity(Double(offset.width > 0 ? min(offset.width/50, 1) : 0))
+                    // Upload indicator
+                    Image(systemName: "arrow.up.circle.fill")
+                        .foregroundColor(.blue)
+                        .opacity(Double(offset.height < 0 ? min(-offset.height/50, 1) : 0))
+                        .offset(y: -geometry.size.height/4)
+                } else {
+                    Text("No more photos")
                 }
-                .padding(.horizontal, 40)
-                
-                // Upload indicator
-                Image(systemName: "arrow.up.circle.fill")
-                    .foregroundColor(.blue)
-                    .opacity(Double(offset.height < 0 ? min(-offset.height/50, 1) : 0))
-                    .offset(y: -geometry.size.height/4)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .offset(x: offset.width, y: offset.height)
-            .rotationEffect(.degrees(Double(offset.width / 20)))
-            .gesture(
-                DragGesture()
-                    .onChanged { gesture in
-                        offset = gesture.translation
-                        changeColor(width: offset.width, height: offset.height)
-                    }
-                    .onEnded { gesture in
-                        withAnimation {
-                            swipeCard(width: gesture.translation.width, height: gesture.translation.height)
-                            changeColor(width: offset.width, height: offset.height)
-                        }
-                    }
-            )
         }
         .edgesIgnoringSafeArea([.horizontal, .top])
     }
@@ -72,12 +71,7 @@ struct PhotoCardView: View {
                 self.viewModel.handleSwipe(direction: .left)
                 
                 // Reset position immediately for next card
-                self.offset = CGSize(width: 500, height: 0)
-                
-                // Animate new card coming in from right
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    self.offset = .zero
-                }
+                self.offset = CGSize(width: 0, height: 0)
             }
             
         case 150...500:
@@ -91,12 +85,7 @@ struct PhotoCardView: View {
                 self.viewModel.handleSwipe(direction: .right)
                 
                 // Reset position immediately for next card
-                self.offset = CGSize(width: -500, height: 0)
-                
-                // Animate new card coming in from left
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    self.offset = .zero
-                }
+                self.offset = CGSize(width: 0, height: 0)
             }
             
         default:
@@ -111,12 +100,7 @@ struct PhotoCardView: View {
                     self.viewModel.handleSwipe(direction: .up)
                     
                     // Reset position immediately for next card
-                    self.offset = CGSize(width: 0, height: 500)
-                    
-                    // Animate new card coming in from bottom
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        self.offset = .zero
-                    }
+                    self.offset = CGSize(width: 0, height: 0)
                 }
             } else {
                 // Return to center if swipe wasn't far enough
@@ -137,7 +121,7 @@ struct PhotoCardView: View {
             if height < -130 {
                 color = .blue
             } else {
-                color = .white
+                color = .black
             }
         }
     }
