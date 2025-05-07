@@ -2,9 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>SwipeLeft needs access to your photo library to let you browse, save, and share photos with swipe gestures.</string>
-    <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>SwipeLeft needs permission to save photos to your library when you choose to save them.</string>
+	<key>UILaunchScreen</key>
+	<false/>
 </dict>
-</plist> 
+</plist>
