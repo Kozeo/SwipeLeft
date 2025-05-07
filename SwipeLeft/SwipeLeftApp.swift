@@ -23,7 +23,6 @@ struct SwipeLeftApp: App {
                     configureGlobalAppearance()
                 }
         }
-        .windowStyle(.automatic)
     }
     
     // MARK: - Private Methods
