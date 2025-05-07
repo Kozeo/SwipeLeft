@@ -6,12 +6,34 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 @main
 struct SwipeLeftApp: App {
+    // MARK: - Properties
+    @StateObject private var appState = AppState()
+    
+    // MARK: - Body
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainTabView()
+                .environmentObject(appState)
         }
     }
 }
+
+// MARK: - App State
+class AppState: ObservableObject {
+    @Published var isAuthenticated = false
+    @Published var photoLibraryAccess = false
+    
+    init() {
+        checkPhotoLibraryAccess()
+    }
+    
+    private func checkPhotoLibraryAccess() {
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        photoLibraryAccess = status == .authorized
+    }
+}
+
