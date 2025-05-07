@@ -17,18 +17,17 @@ struct PhotoBrowserView: View {
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .ignoresSafeArea(.all)
+                .ignoresSafeArea()
                 
-                // Content
-                if !appState.photoLibraryAccess {
-                    PhotoLibraryAccessView()
-                } else {
-                    PhotoCardView()
-                        .environmentObject(viewModel)
-                        .safeAreaInset(edge: .bottom) {
-                            // Empty view with height matching tab bar
-                            Color.clear.frame(height: 0)
-                        }
+                VStack(spacing: 0) {
+                    if !appState.photoLibraryAccess {
+                        PhotoLibraryAccessView()
+                    } else {
+                        PhotoCardView()
+                            .environmentObject(viewModel)
+                        
+                        Spacer() // This pushes content to the top
+                    }
                 }
             }
             .navigationTitle("Browse Photos")

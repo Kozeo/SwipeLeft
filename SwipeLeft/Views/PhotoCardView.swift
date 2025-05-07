@@ -45,7 +45,7 @@ struct PhotoCardView: View {
             }
             .frame(
                 width: geometry.size.width,
-                height: geometry.size.height - geometry.safeAreaInsets.bottom
+                height: geometry.size.height * 0.85
             )
             .offset(x: offset.width, y: offset.height)
             .rotationEffect(.degrees(Double(offset.width / 20)))
@@ -63,7 +63,7 @@ struct PhotoCardView: View {
                     }
             )
         }
-        .ignoresSafeArea()
+        .edgesIgnoringSafeArea([.top, .horizontal])
     }
     
     private func swipeCard(width: CGFloat, height: CGFloat) {
