@@ -20,13 +20,13 @@ struct PhotoBrowserView: View {
                 .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
+                    Spacer() // Add this spacer to push content down
+                    
                     if !appState.photoLibraryAccess {
                         PhotoLibraryAccessView()
                     } else {
                         PhotoCardView()
                             .environmentObject(viewModel)
-                        
-                        Spacer() // This pushes content to the top
                     }
                 }
             }
