@@ -3,6 +3,7 @@ import PhotosUI
 
 struct PhotoCardView: View {
     @EnvironmentObject private var viewModel: PhotoBrowserViewModel
+    @EnvironmentObject private var appState: AppState
     @State private var offset = CGSize.zero
     @State private var color: Color = .black
     
@@ -128,5 +129,6 @@ struct PhotoView: View {
 
 #Preview {
     PhotoCardView()
-        .environmentObject(PhotoBrowserViewModel())
+        .environmentObject(PhotoBrowserViewModel(appState: AppState()))
+        .environmentObject(AppState())
 } 

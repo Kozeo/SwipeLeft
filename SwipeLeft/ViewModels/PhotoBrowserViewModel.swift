@@ -4,19 +4,29 @@ import PhotosUI
 @MainActor
 class PhotoBrowserViewModel: ObservableObject {
     // MARK: - Published Properties
-    @Published var currentPhoto: PHAsset?
+    @Published var currentPhoto: PHAsset? {
+        didSet {
+            appState.setCurrentPhoto(currentPhoto)
+        }
+    }
     @Published var isLoading = false
     @Published var error: Error?
     
     // MARK: - Private Properties
     private var photoFetchResult: PHFetchResult<PHAsset>?
+    private var appState: AppState
     
     // MARK: - Initialization
-    init() {
+    init(appState: AppState) {
+        self.appState = appState
         loadPhotos()
     }
     
     // MARK: - Public Methods
+    func updateAppState(_ newAppState: AppState) {
+        self.appState = newAppState
+    }
+    
     func loadPhotos() {
         isLoading = true
         
