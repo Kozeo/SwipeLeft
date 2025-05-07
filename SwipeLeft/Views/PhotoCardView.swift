@@ -95,6 +95,7 @@ struct PhotoCardView: View {
 struct PhotoView: View {
     let asset: PHAsset
     @State private var image: UIImage?
+    @EnvironmentObject private var viewModel: PhotoBrowserViewModel
     
     var body: some View {
         Group {
@@ -106,24 +107,13 @@ struct PhotoView: View {
                 ProgressView()
             }
         }
-        .onAppear {
-            loadImage()
+        .task {
+            await loadImage()
         }
     }
     
-    private func loadImage() {
-        let options = PHImageRequestOptions()
-        options.deliveryMode = .highQualityFormat
-        options.isNetworkAccessAllowed = true
-        
-        PHImageManager.default().requestImage(
-            for: asset,
-            targetSize: PHImageManagerMaximumSize,
-            contentMode: .aspectFit,
-            options: options
-        ) { result, _ in
-            self.image = result
-        }
+    private func loadImage() async {
+        image = await viewModel.loadImage(for: asset)
     }
 }
 

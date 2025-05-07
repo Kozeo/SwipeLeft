@@ -1,6 +1,14 @@
 import SwiftUI
 import PhotosUI
 
+// MARK: - Photo Error
+enum PhotoError: Error {
+    case assetNotFound
+    case loadFailed
+    case unauthorized
+    case unknownError
+}
+
 @MainActor
 class PhotoBrowserViewModel: ObservableObject {
     // MARK: - Published Properties
@@ -71,6 +79,39 @@ class PhotoBrowserViewModel: ObservableObject {
     private func uploadToPublicFeed() {
         // TODO: Implement uploading to public feed
         moveToNextPhoto()
+    }
+    
+    // MARK: - Photo Loading
+    func loadImage(for asset: PHAsset) async -> UIImage? {
+        do {
+            return try await withCheckedThrowingContinuation { continuation in
+                let options = PHImageRequestOptions()
+                options.deliveryMode = .highQualityFormat
+                options.isNetworkAccessAllowed = true
+                options.isSynchronous = false
+                
+                PHImageManager.default().requestImage(
+                    for: asset,
+                    targetSize: PHImageManagerMaximumSize,
+                    contentMode: .aspectFit,
+                    options: options
+                ) { image, info in
+                    if let error = info?[PHImageErrorKey] as? Error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+                    
+                    if let image = image {
+                        continuation.resume(returning: image)
+                    } else {
+                        continuation.resume(throwing: PhotoError.loadFailed)
+                    }
+                }
+            }
+        } catch {
+            print("Failed to load image: \(error)")
+            return nil
+        }
     }
 }
 

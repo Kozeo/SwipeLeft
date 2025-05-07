@@ -24,7 +24,7 @@ struct SwipeLeftApp: App {
 }
 
 // MARK: - App State
-class AppState: ObservableObject {
+class AppState: ObservableObject, PHPhotoLibraryChangeObserver {
     // MARK: - Published Properties
     @Published var isAuthenticated = false
     @Published var photoLibraryAccess = false
@@ -32,17 +32,32 @@ class AppState: ObservableObject {
     @Published var error: Error?
     
     // MARK: - Private Properties
-    private var photoLibraryObserver: NSObjectProtocol?
+    private var currentPhotoIdentifier: String?
     
     // MARK: - Initialization
     init() {
         checkPhotoLibraryAccess()
-        setupPhotoLibraryObserver()
+        PHPhotoLibrary.shared().register(self)
     }
     
     deinit {
-        if let observer = photoLibraryObserver {
-            NotificationCenter.default.removeObserver(observer)
+        PHPhotoLibrary.shared().unregisterChangeObserver(self)
+    }
+    
+    // MARK: - PHPhotoLibraryChangeObserver
+    func photoLibraryDidChange(_ changeInstance: PHChange) {
+        // Check if the change affects our current photo
+        if let currentIdentifier = currentPhotoIdentifier,
+           let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [currentIdentifier], options: nil),
+           let changes = changeInstance.changeDetails(for: fetchResult) {
+            
+            // If our current photo was deleted or modified
+            if changes.fetchResultAfterChanges.count == 0 {
+                checkPhotoLibraryAccess()
+            }
+        } else {
+            // If we don't have detailed change info, refresh everything
+            checkPhotoLibraryAccess()
         }
     }
     
@@ -50,31 +65,6 @@ class AppState: ObservableObject {
     private func checkPhotoLibraryAccess() {
         photoLibraryStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         photoLibraryAccess = photoLibraryStatus == .authorized
-    }
-    
-    private func setupPhotoLibraryObserver() {
-        photoLibraryObserver = NotificationCenter.default.addObserver(
-            forName: PHPhotoLibrary.changeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            self?.handlePhotoLibraryChange(notification)
-        }
-    }
-    
-    private func handlePhotoLibraryChange(_ notification: Notification) {
-        // Check if the change affects our current photo
-        if let userInfo = notification.userInfo {
-            let changes = PHObject.changes(from: userInfo)
-            
-            // If our current photo was deleted or modified, refresh the access status
-            if changes.contains(where: { $0.assetIdentifier == currentPhotoIdentifier }) {
-                checkPhotoLibraryAccess()
-            }
-        } else {
-            // If we don't have detailed change info, just refresh everything
-            checkPhotoLibraryAccess()
-        }
     }
     
     // MARK: - Public Methods
@@ -98,10 +88,6 @@ class AppState: ObservableObject {
         }
     }
     
-    // MARK: - Private Properties
-    private var currentPhotoIdentifier: String?
-    
-    // MARK: - Public Methods
     func setCurrentPhoto(_ asset: PHAsset?) {
         currentPhotoIdentifier = asset?.localIdentifier
     }
