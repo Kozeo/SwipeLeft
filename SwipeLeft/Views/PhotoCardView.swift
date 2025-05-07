@@ -3,6 +3,7 @@ import PhotosUI
 
 struct PhotoCardView: View {
     @EnvironmentObject private var viewModel: PhotoBrowserViewModel
+    @EnvironmentObject private var appState: AppState
     @State private var offset = CGSize.zero
     @State private var color: Color = .black
     
@@ -40,7 +41,7 @@ struct PhotoCardView: View {
                         Spacer()
                         
                         Image(systemName: "heart.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(.purple)
                             .font(.system(size: 100))
                             .opacity(Double(offset.width > 0 ? offset.width / 50 : 0))
                     }
@@ -58,7 +59,10 @@ struct PhotoCardView: View {
                         .foregroundColor(.gray)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(UIColor.systemBackground))
         }
+        .ignoresSafeArea()
     }
     
     private func swipeCard(width: CGFloat, height: CGFloat) {
@@ -84,7 +88,7 @@ struct PhotoCardView: View {
         case -500...(-130):
             color = .red
         case 130...500:
-            color = .green
+            color = .purple
         default:
             color = .black
         }
@@ -94,6 +98,7 @@ struct PhotoCardView: View {
 struct PhotoView: View {
     let asset: PHAsset
     @State private var image: UIImage?
+    @EnvironmentObject private var viewModel: PhotoBrowserViewModel
     
     var body: some View {
         Group {
@@ -101,32 +106,24 @@ struct PhotoView: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
+                    .clipped()
             } else {
                 ProgressView()
+                    .scaleEffect(2)
             }
         }
-        .onAppear {
-            loadImage()
+        .task {
+            await loadImage()
         }
     }
     
-    private func loadImage() {
-        let options = PHImageRequestOptions()
-        options.deliveryMode = .highQualityFormat
-        options.isNetworkAccessAllowed = true
-        
-        PHImageManager.default().requestImage(
-            for: asset,
-            targetSize: PHImageManagerMaximumSize,
-            contentMode: .aspectFit,
-            options: options
-        ) { result, _ in
-            self.image = result
-        }
+    private func loadImage() async {
+        image = await viewModel.loadImage(for: asset)
     }
 }
 
 #Preview {
     PhotoCardView()
-        .environmentObject(PhotoBrowserViewModel())
+        .environmentObject(PhotoBrowserViewModel(appState: AppState()))
+        .environmentObject(AppState())
 } 

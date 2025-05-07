@@ -19,12 +19,37 @@ struct SwipeLeftApp: App {
         WindowGroup {
             MainTabView()
                 .environmentObject(appState)
+                .onAppear {
+                    configureGlobalAppearance()
+                }
         }
+    }
+    
+    // MARK: - Private Methods
+    private func configureGlobalAppearance() {
+        // Configure global UI appearance
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = .systemBackground
+        appearance.titleTextAttributes = [.foregroundColor: UIColor.label]
+        appearance.largeTitleTextAttributes = [.foregroundColor: UIColor.label]
+        
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        
+        // Configure tab bar appearance
+        let tabBarAppearance = UITabBarAppearance()
+        tabBarAppearance.configureWithOpaqueBackground()
+        tabBarAppearance.backgroundColor = .systemBackground
+        
+        UITabBar.appearance().standardAppearance = tabBarAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
     }
 }
 
 // MARK: - App State
-class AppState: ObservableObject {
+class AppState: NSObject, ObservableObject, PHPhotoLibraryChangeObserver {
     // MARK: - Published Properties
     @Published var isAuthenticated = false
     @Published var photoLibraryAccess = false
@@ -32,51 +57,63 @@ class AppState: ObservableObject {
     @Published var error: Error?
     
     // MARK: - Private Properties
-    private var photoLibraryObserver: NSObjectProtocol?
+    private var currentPhotoIdentifier: String?
     
     // MARK: - Initialization
-    init() {
+    override init() {
+        super.init()
         checkPhotoLibraryAccess()
-        setupPhotoLibraryObserver()
+        PHPhotoLibrary.shared().register(self)
     }
     
     deinit {
-        if let observer = photoLibraryObserver {
-            NotificationCenter.default.removeObserver(observer)
+        PHPhotoLibrary.shared().unregisterChangeObserver(self)
+    }
+    
+    // MARK: - PHPhotoLibraryChangeObserver
+    func photoLibraryDidChange(_ changeInstance: PHChange) {
+        // Check if the change affects our current photo
+        if let currentIdentifier = currentPhotoIdentifier {
+            let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [currentIdentifier], options: nil)
+            if let changes = changeInstance.changeDetails(for: fetchResult) {
+                // If our current photo was deleted or modified
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    if changes.fetchResultAfterChanges.count == 0 {
+                        self.checkPhotoLibraryAccess()
+                    }
+                }
+            }
+        } else {
+            // If we don't have detailed change info, refresh everything
+            DispatchQueue.main.async { [weak self] in
+                self?.checkPhotoLibraryAccess()
+            }
         }
     }
     
     // MARK: - Private Methods
     private func checkPhotoLibraryAccess() {
-        photoLibraryStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        photoLibraryAccess = photoLibraryStatus == .authorized
-    }
-    
-    private func setupPhotoLibraryObserver() {
-        photoLibraryObserver = NotificationCenter.default.addObserver(
-            forName: PHPhotoLibrary.photoLibraryDidChange,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.handlePhotoLibraryChange()
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.photoLibraryStatus = status
+            self.photoLibraryAccess = status == .authorized
         }
-    }
-    
-    private func handlePhotoLibraryChange() {
-        checkPhotoLibraryAccess()
     }
     
     // MARK: - Public Methods
     func requestPhotoLibraryAccess() async {
         do {
             let status = try await PHPhotoLibrary.requestAuthorization(for: .readWrite)
-            await MainActor.run {
-                photoLibraryStatus = status
-                photoLibraryAccess = status == .authorized
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                self.photoLibraryStatus = status
+                self.photoLibraryAccess = status == .authorized
             }
         } catch {
-            await MainActor.run {
-                self.error = error
+            await MainActor.run { [weak self] in
+                self?.error = error
             }
         }
     }
@@ -84,6 +121,12 @@ class AppState: ObservableObject {
     func openSettings() {
         if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(settingsURL)
+        }
+    }
+    
+    func setCurrentPhoto(_ asset: PHAsset?) {
+        DispatchQueue.main.async { [weak self] in
+            self?.currentPhotoIdentifier = asset?.localIdentifier
         }
     }
 }

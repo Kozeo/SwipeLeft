@@ -3,11 +3,27 @@ import PhotosUI
 
 struct PhotoBrowserView: View {
     @EnvironmentObject private var appState: AppState
-    @StateObject private var viewModel = PhotoBrowserViewModel()
+    @StateObject private var viewModel: PhotoBrowserViewModel
+    
+    init() {
+        // Initialize with a temporary AppState, will be replaced by environment object
+        _viewModel = StateObject(wrappedValue: PhotoBrowserViewModel(appState: AppState()))
+    }
     
     var body: some View {
         NavigationStack {
             ZStack {
+                // Background gradient
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(UIColor.systemBackground),
+                        Color(UIColor.secondarySystemBackground)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+                
                 if !appState.photoLibraryAccess {
                     PhotoLibraryAccessView()
                 } else {
@@ -16,6 +32,11 @@ struct PhotoBrowserView: View {
                 }
             }
             .navigationTitle("Browse Photos")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .onAppear {
+            // Update ViewModel with the actual AppState from environment
+            viewModel.updateAppState(appState)
         }
     }
 }
@@ -43,6 +64,7 @@ struct PhotoLibraryAccessView: View {
                     appState.openSettings()
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(.purple)
             } else {
                 Button("Grant Access") {
                     isRequestingAccess = true
@@ -52,6 +74,7 @@ struct PhotoLibraryAccessView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(.purple)
                 .disabled(isRequestingAccess)
             }
             
@@ -61,6 +84,8 @@ struct PhotoLibraryAccessView: View {
             }
         }
         .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(UIColor.systemBackground))
     }
     
     private var accessTitle: String {
