@@ -40,7 +40,7 @@ class RemotePhotoRepository: PhotoRepository {
     
     func saveToPrivateCollection(id: String) async throws {
         // This would save the photo ID to the user's private collection on the server
-        guard let photo = try await getPhoto(byId: id) else {
+        guard let _photo = try await getPhoto(byId: id) else {
             throw PhotoRepositoryError.photoNotFound
         }
         

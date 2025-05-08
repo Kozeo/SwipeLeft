@@ -246,11 +246,4 @@ class PhotoBrowserViewModel: ObservableObject {
             return nil
         }
     }
-}
-
-// MARK: - Supporting Types
-enum SwipeDirection {
-    case left
-    case right
-    case up
 } 
