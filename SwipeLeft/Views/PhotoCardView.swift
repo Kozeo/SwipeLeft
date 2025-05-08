@@ -129,6 +129,7 @@ struct PhotoCardView: View {
 
 private struct PhotoView: View {
     let asset: PHAsset
+    @EnvironmentObject private var viewModel: PhotoBrowserViewModel
     @State private var image: UIImage?
     
     var body: some View {
@@ -142,46 +143,8 @@ private struct PhotoView: View {
             }
         }
         .task {
-            await loadImage()
-        }
-    }
-    
-    private func loadImage() async {
-        do {
-            let options = PHImageRequestOptions()
-            options.deliveryMode = .highQualityFormat // Request high quality
-            options.isNetworkAccessAllowed = true
-            options.isSynchronous = false
-            
-            // Track if continuation was already called
-            var continuationCalled = false
-            
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                PHImageManager.default().requestImage(
-                    for: asset,
-                    targetSize: CGSize(width: UIScreen.main.bounds.width * 2, height: UIScreen.main.bounds.height * 2), // Request larger size
-                    contentMode: .aspectFit,
-                    options: options
-                ) { image, info in
-                    // Guard against calling continuation multiple times
-                    guard !continuationCalled else { return }
-                    continuationCalled = true
-                    
-                    if let error = info?[PHImageErrorKey] as? Error {
-                        continuation.resume(throwing: error)
-                        return
-                    }
-                    
-                    if let image = image {
-                        self.image = image  // Set the image directly here
-                        continuation.resume(returning: ())  // Just resume with Void
-                    } else {
-                        continuation.resume(throwing: PhotoError.loadFailed)
-                    }
-                }
-            }
-        } catch {
-            print("Failed to load image: \(error)")
+            // Try to get from preloaded cache first
+            image = await viewModel.loadImage(for: asset)
         }
     }
 }
