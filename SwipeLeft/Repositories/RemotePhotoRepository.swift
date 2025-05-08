@@ -92,7 +92,8 @@ class RemotePhotoRepository: PhotoRepository {
             photos.append(Photo(
                 id: asset.localIdentifier,
                 asset: asset,
-                status: .saved
+                status: .saved,
+                dateAdded: Date()
             ))
         }
         
