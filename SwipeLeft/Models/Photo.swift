@@ -20,6 +20,16 @@ struct Photo: Identifiable, Equatable {
         self.dateAdded = Date()
     }
     
+    // Memberwise initializer for creating from dictionary
+    init(id: String, asset: PHAsset, status: PhotoStatus, dateAdded: Date, lastModified: Date? = nil, localURL: URL? = nil) {
+        self.id = id
+        self.asset = asset
+        self.status = status
+        self.dateAdded = dateAdded
+        self.lastModified = lastModified
+        self.localURL = localURL
+    }
+    
     // Equatable implementation
     static func == (lhs: Photo, rhs: Photo) -> Bool {
         return lhs.id == rhs.id
@@ -60,20 +70,17 @@ struct Photo: Identifiable, Equatable {
             return nil
         }
         
-        var photo = Photo(asset: asset)
-        photo.id = id
-        photo.status = status
-        photo.dateAdded = dateAdded
+        let lastModified = dict["lastModified"] as? Date
+        let localURL = (dict["localURL"] as? String).flatMap { URL(string: $0) }
         
-        if let lastModified = dict["lastModified"] as? Date {
-            photo.lastModified = lastModified
-        }
-        
-        if let urlString = dict["localURL"] as? String, let url = URL(string: urlString) {
-            photo.localURL = url
-        }
-        
-        return photo
+        return Photo(
+            id: id,
+            asset: asset,
+            status: status,
+            dateAdded: dateAdded,
+            lastModified: lastModified,
+            localURL: localURL
+        )
     }
     
     // Update status and set lastModified
