@@ -117,16 +117,16 @@ struct PhotoCardView: View {
                 if gesture.translation.width > 0 {
                     // Right swipe - Save
                     offset.width = geometry.size.width * 1.5
-                    onSwipe(.right)
+                    onSwipe(SwipeDirection.right)
                 } else {
                     // Left swipe - Ignore
                     offset.width = -geometry.size.width * 1.5
-                    onSwipe(.left)
+                    onSwipe(SwipeDirection.left)
                 }
             } else if verticalDistance > Theme.Layout.swipeThreshold && gesture.translation.height < 0 {
                 // Up swipe - Upload
                 offset.height = -geometry.size.height * 1.5
-                onSwipe(.up)
+                onSwipe(SwipeDirection.up)
             } else {
                 // Reset position
                 offset = .zero
@@ -212,14 +212,6 @@ private struct PhotoView: View {
             print("Error loading image: \(error)")
         }
     }
-}
-
-// MARK: - Swipe Direction
-
-enum SwipeDirection {
-    case left
-    case right
-    case up
 }
 
 #Preview {
