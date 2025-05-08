@@ -53,7 +53,8 @@ class LocalPhotoRepository: PhotoRepository {
         return Photo(
             id: asset.localIdentifier,
             asset: asset,
-            status: status
+            status: status,
+            dateAdded: Date()
         )
     }
     
