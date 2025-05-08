@@ -1,116 +1,137 @@
 import SwiftUI
-import PhotosUI
+import Photos
 
 struct PhotoBrowserView: View {
-    @EnvironmentObject private var appState: AppState
-    @StateObject private var viewModel = PhotoBrowserViewModel(appState: AppState())
+    @StateObject private var viewModel: PhotoBrowserViewModel
+    @State private var showPermissionAlert = false
+    
+    init(appState: AppState) {
+        _viewModel = StateObject(wrappedValue: PhotoBrowserViewModel(appState: appState))
+    }
     
     var body: some View {
-        NavigationStack {
-            ZStack {
-                // Background gradient
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color(UIColor.systemBackground),
-                        Color(UIColor.secondarySystemBackground)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+        ZStack {
+            // Background
+            Theme.backgroundDark
                 .ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    Spacer() // Add this spacer to push content down
-                    
-                    if !appState.photoLibraryAccess {
-                        PhotoLibraryAccessView()
-                    } else {
-                        PhotoCardView()
-                            .environmentObject(viewModel)
-                    }
+            
+            if viewModel.isLoading {
+                loadingView
+            } else if viewModel.currentPhoto == nil {
+                emptyStateView
+            } else {
+                mainContent
+            }
+        }
+        .alert("Photo Access Required", isPresented: $showPermissionAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
                 }
             }
-            .navigationTitle("Browse Photos")
-            .navigationBarTitleDisplayMode(.inline)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Please allow access to your photos to use SwipeLeft.")
+        }
+        .task {
+            await viewModel.requestPhotoAccess()
         }
     }
-}
-
-struct PhotoLibraryAccessView: View {
-    @EnvironmentObject private var appState: AppState
-    @State private var isRequestingAccess = false
     
-    var body: some View {
-        VStack(spacing: 20) {
+    // MARK: - Main Content
+    
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            // Status Bar
+            statusBar
+                .padding(.top, Theme.Layout.padding)
+            
+            // Photo Card
+            if let photo = viewModel.currentPhoto {
+                PhotoCardView(photo: photo) { direction in
+                    Task {
+                        await viewModel.handleSwipe(direction: direction)
+                    }
+                }
+                .padding(.horizontal, Theme.Layout.padding)
+                .padding(.vertical, Theme.Layout.smallPadding)
+            }
+            
+            Spacer()
+        }
+    }
+    
+    // MARK: - Status Bar
+    
+    private var statusBar: some View {
+        HStack {
+            // Photo Count
+            Text("\(viewModel.currentIndex + 1)/\(viewModel.totalPhotos)")
+                .font(Theme.Typography.captionFont)
+                .foregroundColor(Theme.textSecondary)
+            
+            Spacer()
+            
+            // Settings Button
+            Button {
+                // TODO: Show settings
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: Theme.Layout.iconSize))
+                    .foregroundColor(Theme.textSecondary)
+            }
+        }
+        .padding(.horizontal, Theme.Layout.padding)
+    }
+    
+    // MARK: - Loading View
+    
+    private var loadingView: some View {
+        VStack(spacing: Theme.Layout.padding) {
+            ProgressView()
+                .scaleEffect(1.5)
+                .tint(Theme.textPrimary)
+            
+            Text("Loading Photos...")
+                .font(Theme.Typography.bodyFont)
+                .foregroundColor(Theme.textSecondary)
+        }
+    }
+    
+    // MARK: - Empty State
+    
+    private var emptyStateView: some View {
+        VStack(spacing: Theme.Layout.padding) {
             Image(systemName: "photo.on.rectangle.angled")
                 .font(.system(size: 60))
-                .foregroundColor(.gray)
+                .foregroundColor(Theme.textSecondary)
             
-            Text(accessTitle)
-                .font(.title2)
-                .bold()
+            Text("No Photos Available")
+                .font(Theme.Typography.headlineFont)
+                .foregroundColor(Theme.textPrimary)
             
-            Text(accessMessage)
+            Text("Add some photos to your library to get started.")
+                .font(Theme.Typography.bodyFont)
+                .foregroundColor(Theme.textSecondary)
                 .multilineTextAlignment(.center)
-                .foregroundColor(.gray)
+                .padding(.horizontal, Theme.Layout.padding)
             
-            if appState.photoLibraryStatus == .denied || appState.photoLibraryStatus == .restricted {
-                Button("Open Settings") {
-                    appState.openSettings()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.purple)
-            } else {
-                Button("Grant Access") {
-                    isRequestingAccess = true
-                    Task {
-                        await appState.requestPhotoLibraryAccess()
-                        isRequestingAccess = false
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.purple)
-                .disabled(isRequestingAccess)
+            Button {
+                showPermissionAlert = true
+            } label: {
+                Text("Check Permissions")
+                    .font(Theme.Typography.bodyFont)
+                    .foregroundColor(Theme.textPrimary)
+                    .padding(.horizontal, Theme.Layout.padding)
+                    .padding(.vertical, Theme.Layout.smallPadding)
+                    .background(Theme.primaryGradient)
+                    .cornerRadius(Theme.Layout.cornerRadius)
             }
-            
-            if isRequestingAccess {
-                ProgressView()
-                    .padding(.top)
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(UIColor.systemBackground))
-    }
-    
-    private var accessTitle: String {
-        switch appState.photoLibraryStatus {
-        case .denied:
-            return "Photo Access Denied"
-        case .restricted:
-            return "Photo Access Restricted"
-        case .limited:
-            return "Limited Photo Access"
-        default:
-            return "Photo Access Required"
-        }
-    }
-    
-    private var accessMessage: String {
-        switch appState.photoLibraryStatus {
-        case .denied:
-            return "Please enable photo access in Settings to use this feature."
-        case .restricted:
-            return "Photo access is restricted on this device."
-        case .limited:
-            return "You've granted limited access to your photos. You can change this in Settings."
-        default:
-            return "Please allow access to your photo library to start swiping photos."
+            .padding(.top, Theme.Layout.padding)
         }
     }
 }
 
 #Preview {
-    PhotoBrowserView()
-        .environmentObject(AppState())
+    PhotoBrowserView(appState: AppState())
 } 
